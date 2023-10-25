@@ -221,7 +221,7 @@ luse_mpi = detect_mpirun()
 
 ! Setup
 call get_command_line_arguments(nsmax, cgrid, iters, nfld, nlev, lvordiv, lscders, luvders, &
-  & luseflt, nproma, verbosity, ldump_values, lprint_norms, lmeminfo, nprtrv, nprtrw, ncheck)
+  & luseflt, nproma, verbosity, ldump_values, lprint_norms, lmeminfo, ldetailed_stats, nprtrv, nprtrw, ncheck)
 if (cgrid == '') cgrid = cubic_octahedral_gaussian_grid(nsmax)
 call parse_grid(cgrid, ndgl, nloen)
 nflevg = nlev
@@ -1020,7 +1020,7 @@ end subroutine
 
 subroutine get_command_line_arguments(nsmax, cgrid, iters, nfld, nlev, lvordiv, lscders, luvders, &
   &                                   luseflt, nproma, verbosity, ldump_values, lprint_norms, &
-  &                                   lmeminfo, nprtrv, nprtrw, ncheck)
+  &                                   lmeminfo, ldetailed_stats, nprtrv, nprtrw, ncheck)
 
   integer, intent(inout) :: nsmax           ! Spectral truncation
   character(len=16), intent(inout) :: cgrid ! Spectral truncation
@@ -1037,6 +1037,7 @@ subroutine get_command_line_arguments(nsmax, cgrid, iters, nfld, nlev, lvordiv, 
   logical, intent(inout) :: lprint_norms    ! Calculate and print spectral norms of fields
   logical, intent(inout) :: lmeminfo        ! Show information from FIAT ec_meminfo routine at the
                                             ! end
+  logical, intent(inout) :: ldetailed_stats ! turn on detailed stats in GSTATS
   integer, intent(inout) :: nprtrv          ! Size of V set (spectral decomposition)
   integer, intent(inout) :: nprtrw          ! Size of W set (spectral decomposition)
   integer, intent(inout) :: ncheck          ! The multiplier of the machine epsilon used as a
@@ -1083,6 +1084,7 @@ subroutine get_command_line_arguments(nsmax, cgrid, iters, nfld, nlev, lvordiv, 
       case('--dump-values'); ldump_values = .true.
       case('--norms'); lprint_norms = .true.
       case('--meminfo'); lmeminfo = .true.
+      case('--detailed-stats'); ldetailed_stats=.true.
       case('--nprtrv'); nprtrv = get_int_value('--nprtrv', iarg)
       case('--nprtrw'); nprtrw = get_int_value('--nprtrw', iarg)
       case('-c', '--check'); ncheck = get_int_value('-c', iarg)
@@ -1205,6 +1207,7 @@ subroutine print_help(unit)
     & timings"
   write(nout, "(a)") "    --meminfo           Show diagnostic information from FIAT's ec_meminfo&
     & subroutine on memory usage, thread-binding etc."
+  write(nout, "(a)") "    --detailed-stats    Enable capture of detailed statistics"
   write(nout, "(a)") "    --nprtrv            Size of V set in spectral decomposition"
   write(nout, "(a)") "    --nprtrw            Size of W set in spectral decomposition"
   write(nout, "(a)") "    -c, --check VALUE   The multiplier of the machine epsilon used as a&
@@ -1341,24 +1344,62 @@ end function
 ! Assign GSTATS labels to the main regions of ecTrans
 subroutine gstats_labels
 
-  call gstats_label(0,   '   ', 'PROGRAM        - Total')
-  call gstats_label(1,   '   ', 'SETUP_TRANS0   - Setup ecTrans')
-  call gstats_label(2,   '   ', 'SETUP_TRANS    - Setup ecTrans handle')
-  call gstats_label(3,   '   ', 'TIME STEP      - Time step')
-  call gstats_label(4,   '   ', 'INV_TRANS      - Inverse transform')
-  call gstats_label(5,   '   ', 'DIR_TRANS      - Direct transform')
-  call gstats_label(6,   '   ', 'NORMS          - Norm comp. (optional)')
-  call gstats_label(102, '   ', 'LTINV_CTL      - Inv. Legendre transform')
-  call gstats_label(103, '   ', 'LTDIR_CTL      - Dir. Legendre transform')
-  call gstats_label(106, '   ', 'FTDIR_CTL      - Dir. Fourier transform')
-  call gstats_label(107, '   ', 'FTINV_CTL      - Inv. Fourier transform')
-  call gstats_label(140, '   ', 'SULEG          - Comp. of Leg. poly.')
-  call gstats_label(152, '   ', 'LTINV_CTL      - M to L transposition')
-  call gstats_label(153, '   ', 'LTDIR_CTL      - L to M transposition')
-  call gstats_label(157, '   ', 'FTINV_CTL      - L to G transposition')
-  call gstats_label(158, '   ', 'FTDIR_CTL      - G to L transposition')
-  call gstats_label(400, '   ', 'GSTATS         - GSTATS itself')
-
+! General program labels
+! PRG - counters in the driver
+! TRS - counters internal to the trans package
+! BAR - barrier
+! MPL - MPL-related counters in ecTrans
+  call gstats_label(0,   'PRG', 'PROGRAM        - TOTAL')
+  call gstats_label(1,   'PRG', 'SETUP_TRANS0   - SETUP ECTRANS')
+  call gstats_label(2,   'PRG', 'SETUP_TRANS    - SETUP ECTRANS HANDLE')
+  call gstats_label(3,   'PRG', 'TIME STEP      - TIME STEP')
+  call gstats_label(4,   'PRG', 'INV_TRANS      - INVERSE TRANSFORM')
+  call gstats_label(5,   'PRG', 'DIR_TRANS      - DIRECT TRANSFORM')
+  call gstats_label(6,   'TRS', 'NORMS          - NORM COMP. (OPTIONAL)')
+  call gstats_label(102, 'TRS', 'LTINV_CTL      - INV. LEGENDRE TRANSFORM')
+  call gstats_label(103, 'TRS', 'LTDIR_CTL      - DIR. LEGENDRE TRANSFORM')
+  call gstats_label(106, 'TRS', 'FTDIR_CTL      - DIR. FOURIER TRANSFORM')
+  call gstats_label(107, 'TRS', 'FTINV_CTL      - INV. FOURIER TRANSFORM')
+  call gstats_label(140, 'TRS', 'SULEG          - COMP. OF LEG. POLY.')
+  call gstats_label(152, 'TRS', 'LTINV_CTL      - M TO L TRANSPOSITION')
+  call gstats_label(153, 'TRS', 'LTDIR_CTL      - L TO M TRANSPOSITION')
+  call gstats_label(157, 'TRS', 'FTINV_CTL      - L TO G TRANSPOSITION')
+  call gstats_label(158, 'TRS', 'FTDIR_CTL      - G TO L TRANSPOSITION')
+  call gstats_label(190, 'TRS', 'SUTRLE         - COMMUNICATE LEG.POL.')
+  call gstats_label(400, 'PRG', 'GSTATS         - GSTATS ITSELF')
+  call gstats_label(798, 'BAR', 'SULEG          - BARRIER IN SULEG')
+  call gstats_label(803, 'MPL', 'TRGTOL_COMMS   - RECV+PACK+SEND+UNPACK')
+  call gstats_label(805, 'MPL', 'TRLTOG_COMMS   - RECV+PACK+SEND+UNPACK')
+  call gstats_label(806, 'MPL', 'TRLTOM_COMMS   - ALLTOALLV')
+  call gstats_label(807, 'MPL', 'TRMTOL_COMMS   - ALLTOALLV')
+  call gstats_label(814, 'MPL', 'TRANS          - SUSTAONL')
+  call gstats_label(851, 'MPL', 'SULEG          - SUPOLF')
+  call gstats_label(1251,'OMP', 'SULEG          - SUPOLF')
+  call gstats_label(1601,'OMP', 'TRGTOL LOCAL')
+  call gstats_label(1602,'OMP', 'TRGTOL PACK')
+  call gstats_label(1603,'OMP', 'TRGTOL UNPACK')
+  call gstats_label(1604,'OMP', 'TRLTOG LOCAL')
+  call gstats_label(1605,'OMP', 'TRLTOG PACK')
+  call gstats_label(1606,'OMP', 'TRLTOG UNPACK')
+  call gstats_label(1607,'OMP', 'TRLTOM')
+  call gstats_label(1608,'OMP', 'TRMTOL ')
+  call gstats_label(1639,'OMP', 'FTINV_CTL')
+  call gstats_label(1640,'OMP', 'FTDIR_CTL')
+  call gstats_label(1643,'OMP', 'GATH_GRID_CTL')
+  call gstats_label(1644,'OMP', 'GATH_SPEC_CONTROL ')
+  call gstats_label(1645,'OMP', 'LTDIR_CTL     - DIRECT LEGENDRE TRANSFORM')
+  call gstats_label(1647,'OMP', 'LTINV_CTL     - INVERSE LEGENDRE TRANSFORM')
+  call gstats_label(1650,'OMP', 'SUGAW_MOD')
+  call gstats_label(1651,'OMP', 'SPNORMD')
+  call gstats_label(1663,'OMP', 'DIST_GRID_CTL')
+  call gstats_label(1801,'TRS','SULEG ')
+  call gstats_label(1802,'TRS','SETUP_TRANS ')
+  call gstats_label(1803,'TRS','SUTRLE ')
+  call gstats_label(1804,'TRS','DIST_SPEC_CONTROL_SERIAL')
+  call gstats_label(1805,'TRS','TRGTOL INIT')
+  call gstats_label(1806,'TRS','TRLTOG INIT')
+  call gstats_label(1807,'TRS','INV_TRANS INIT')
+  call gstats_label(1808,'TRS','DIR_TRANS INIT')
 end subroutine gstats_labels
 
 end program transform_test
