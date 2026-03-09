@@ -298,6 +298,29 @@ if( HAVE_ETRANS )
 endif()
 
 # --------------------------------------------------------------------------------------------------
+# Add test for split-communicator compatibility of ecTrans
+# --------------------------------------------------------------------------------------------------
+
+# It doesn't really matter which precision we use for this test, as long as we use one that's
+# actually available
+if( HAVE_SINGLE_PRECISION )
+  set( trans_lib trans_sp )
+  set( parkind_lib parkind_sp )
+else()
+  set( trans_lib trans_dp )
+  set( parkind_lib parkind_dp )
+endif()
+if( HAVE_CPU AND HAVE_MPI )
+  ecbuild_add_test(TARGET ectrans_test_split_mpi_comm
+    SOURCES trans/test_split_mpi_comm.F90
+    LIBS ${trans_lib} ${parkind_lib}
+    LINKER_LANGUAGE Fortran
+    MPI 4
+    OMP 1
+  )
+endif()
+
+# --------------------------------------------------------------------------------------------------
 # Add tests for transi
 # --------------------------------------------------------------------------------------------------
 
@@ -443,6 +466,19 @@ if( HAVE_TRANSI )
     LINKER_LANGUAGE C
     CONDITION HAVE_ETRANS
     ENVIRONMENT TRANS_USE_MPI=0 )
+
+  if( HAVE_MPI )
+    # Test ectrans_test_transi_split_comm requires MPI C
+    find_package( MPI COMPONENTS C )
+    if ( MPI_C_FOUND )
+      ecbuild_add_test( TARGET ectrans_test_transi_split_comm
+        SOURCES   transi/transi_test_split_comm.c
+        LIBS      ectrans_test MPI::MPI_C
+        MPI 2
+        LINKER_LANGUAGE C
+        ENVIRONMENT TRANS_USE_MPI=1 )
+    endif()
+  endif()
 
   if( HAVE_ETRANS_GPU )
     ecbuild_add_test( TARGET ectrans_test_transi_lam_gpu
