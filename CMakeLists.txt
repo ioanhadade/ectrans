@@ -8,7 +8,7 @@
 
 cmake_minimum_required( VERSION 3.25 FATAL_ERROR )
 
-find_package( ecbuild 3.4 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild )
+find_package( ecbuild 3.8 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild )
 
 project( ectrans LANGUAGES C CXX Fortran )
 include( ectrans_macros )
@@ -39,12 +39,11 @@ ecbuild_enable_fortran( REQUIRED NO_MODULE_DIRECTORY )
 
 ### Find (optional) dependencies
 
-ecbuild_find_package( NAME fiat REQUIRED )
+ecbuild_find_package( NAME fiat VERSION 1.3.0 REQUIRED )
 
-ecbuild_add_option( FEATURE MPI
-                    DESCRIPTION "Support for MPI distributed memory parallelism"
-                    REQUIRED_PACKAGES "MPI COMPONENTS Fortran CXX"
-                    CONDITION fiat_HAVE_MPI )
+# Inherit MPI feature from FIAT (if you don't want MPI, rebuild FIAT with ENABLE_MPI=OFF)
+set( HAVE_MPI ${fiat_HAVE_MPI} )
+set( ectrans_HAVE_MPI ${HAVE_MPI} ) # also needed as more specific alias to HAVE_MPI
 
 ecbuild_add_option( FEATURE OMP
                     DEFAULT ON
@@ -64,25 +63,30 @@ ecbuild_add_option( FEATURE SINGLE_PRECISION
                     DEFAULT ON
                     DESCRIPTION "Support for Single Precision" )
 
+# Check DOUBLE_PRECISION or SINGLE_PRECISION is enabled, and if not, abort
+if( (NOT HAVE_DOUBLE_PRECISION) AND (NOT HAVE_SINGLE_PRECISION) )
+  ecbuild_critical("Please enable one or both of the DOUBLE_PRECISION and SINGLE_PRECISION features")
+endif()
+
 if( HAVE_SINGLE_PRECISION )
   set( single "single" )
 endif()
 set( HAVE_dp ${HAVE_DOUBLE_PRECISION} )
 set( HAVE_sp ${HAVE_SINGLE_PRECISION} )
 
+ecbuild_add_option( FEATURE CPU
+                    DEFAULT ON
+                    DESCRIPTION "Compile CPU version of ectrans" )
+
 ecbuild_add_option( FEATURE MKL
                     DESCRIPTION "Use MKL for BLAS and/or FFTW"
                     DEFAULT ON
-                    REQUIRED_PACKAGES "MKL QUIET" )
+                    REQUIRED_PACKAGES "MKL QUIET"
+                    CONDITION HAVE_CPU )
 
 if( NOT HAVE_MKL )
     option( FFTW_ENABLE_MKL OFF )
 endif()
-
-ecbuild_add_option( FEATURE CPU
-                    DEFAULT ON
-                    DESCRIPTION "Compile CPU version of ectrans"
-                   )
 
 if( HAVE_CPU )
   ecbuild_find_package( NAME FFTW REQUIRED COMPONENTS double ${single} )
@@ -138,9 +142,9 @@ ecbuild_add_option( FEATURE CUTLASS_3XTF32
 
 ecbuild_add_option( FEATURE GPU_AWARE_MPI
                     DEFAULT ON
-                    CONDITION HAVE_GPU
-                    REQUIRED_PACKAGES "MPI COMPONENTS CXX Fortran"
-                    DESCRIPTION "Enable CUDA-aware MPI" )
+                    CONDITION HAVE_GPU AND HAVE_MPI
+                    REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
+                    DESCRIPTION "Enable GPU-aware MPI" )
 
 ecbuild_add_option( FEATURE GPU_GRAPHS_GEMM
                     DEFAULT ON
@@ -159,15 +163,27 @@ else()
 endif()
 ecbuild_add_option( FEATURE GPU_STATIC
                     DEFAULT ${GPU_STATIC_DEFAULT}
-                    DESCRIPTION "Compile GPU library as static library")
+                    DESCRIPTION "Compile GPU library as static library"
+                    CONDITION HAVE_GPU )
 
 ecbuild_add_option( FEATURE ETRANS
                     DEFAULT OFF
                     DESCRIPTION "Include Limited-Area-Model Transforms" )
 
+# Note: ETRANS GPU does not support OpenMP yet or FFT graphs yet
+set( HAVE_ETRANS_GPU 0 )
+if( HAVE_ETRANS AND HAVE_GPU )
+  if( HAVE_ACC AND NOT HAVE_GRAPHS_FFT )
+    set( HAVE_ETRANS_GPU 1 )
+  else()
+    ecbuild_warn( "ETRANS and GPU features requested, but ACC and GRAPHS_FFT also requested."
+                  "The GPU version of etrans only supports OpenACC at the moment, with FFT graphs disabled." )
+  endif()
+endif()
+
 ecbuild_add_option( FEATURE ECTRANS4PY
                     DEFAULT OFF
-		    CONDITION HAVE_ETRANS AND HAVE_DOUBLE_PRECISION
+                    CONDITION HAVE_ETRANS AND HAVE_DOUBLE_PRECISION
                     DESCRIPTION "Compile ectrans4py interface routines for python binding w/ ctypesForFortran" )
 
 

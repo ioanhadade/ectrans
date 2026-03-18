@@ -23,10 +23,10 @@ ecbuild_add_library( TARGET transi_dp
                       $<INSTALL_INTERFACE:include>
   PRIVATE_LIBS        trans_dp
                       $<${ectrans_HAVE_ETRANS}:etrans_dp>
-  PRIVATE_DEFINITIONS ECTRANS_HAVE_MPI=${ectrans_HAVE_MPI}
+  PRIVATE_DEFINITIONS ECTRANS_HAVE_MPI=${HAVE_MPI}
                       ECTRANS_HAVE_ETRANS=${ectrans_HAVE_ETRANS}
 )
-ectrans_target_fortran_module_directory( TARGET transi_dp
+ecbuild_target_fortran_module_directory( TARGET transi_dp
   MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/module/trans_dp
 )
 
@@ -41,7 +41,8 @@ if( HAVE_GPU )
     PUBLIC_INCLUDES     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                         $<INSTALL_INTERFACE:include>
     PRIVATE_LIBS        trans_gpu_dp
-    PRIVATE_DEFINITIONS ECTRANS_HAVE_MPI=${ectrans_HAVE_MPI}
+                        $<${HAVE_ETRANS_GPU}:etrans_gpu_dp>
+    PRIVATE_DEFINITIONS ECTRANS_HAVE_MPI=${HAVE_MPI}
                         ECTRANS_GPU_VERSION
                         ECTRANS_HAVE_ETRANS=0
   )
@@ -53,7 +54,7 @@ if( HAVE_GPU )
       $<$<LINK_LANG_AND_ID:CXX,NVHPC>:SHELL:${OpenACC_Fortran_FLAGS}> )
   endif()
 
-  ectrans_target_fortran_module_directory( TARGET transi_gpu_dp
+  ecbuild_target_fortran_module_directory( TARGET transi_gpu_dp
     MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/module/trans_gpu_dp
   )
 endif()
