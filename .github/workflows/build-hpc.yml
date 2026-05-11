@@ -59,7 +59,7 @@ jobs:
           - name: ac-gpu nvhpc
             site: ac-batch
             troika_user_secret: HPC_CI_SSH_USER
-            arch: ecmwf/hpc2020/nvidia/24.5/hpcx-openmpi/2.19.0-cuda
+            arch: ecmwf/hpc2020/nvhpc/24.5/hpcx-openmpi/2.19.0-cuda
             sbatch_options: |
               #SBATCH --time=00:30:00
               #SBATCH --nodes=1
