@@ -177,7 +177,7 @@ jobs:
             git reset --hard FETCH_HEAD
             popd
 
-            source $BASEDIR/$REPO/.github/arch/{{ arch }}/env.sh
+            source $BASEDIR/$REPO/package/bundle/arch/{{ arch }}/env.sh
 
             # Build dependencies
             {% for name, options in dependencies.items() %}

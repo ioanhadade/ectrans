@@ -7,7 +7,7 @@
 # nor does it submit to any jurisdiction.
 
 ####################################################################
-# COMPILER
+# Compiler
 ####################################################################
 
 set( ECBUILD_FIND_MPI ON )
@@ -18,7 +18,7 @@ set(CMAKE_CXX_COMPILER nvc++)
 set(CMAKE_Fortran_COMPILER nvfortran)
 
 ####################################################################
-# OpenMP FLAGS
+# OpenMP flags
 ####################################################################
 
 set( OpenMP_C_FLAGS             "-mp -mp=bind,allcores,numa" )
@@ -31,7 +31,7 @@ endif()
 
 
 ####################################################################
-# OpenAcc FLAGS
+# OpenACC flags
 ####################################################################
 
 set( OpenACC_Fortran_FLAGS "-acc=gpu -gpu=lineinfo,fastmath,rdc" )
@@ -41,7 +41,7 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
 endif()
 
 ####################################################################
-# COMMON FLAGS
+# Common flags
 ####################################################################
 
 set(ECBUILD_Fortran_FLAGS "-fpic")
@@ -59,3 +59,13 @@ set( ECBUILD_Fortran_FLAGS_BIT "-O2 -gopt" )
 set( ECBUILD_C_FLAGS "-O2 -gopt -traceback" )
 
 set( ECBUILD_CXX_FLAGS "-O2 -gopt" )
+
+####################################################################
+# Default features
+####################################################################
+
+set( ENABLE_GPU ON )
+set( ENABLE_ACC ON )
+set( ENABLE_GPU_STATIC ON )
+set( ENABLE_FIELD_API ON )
+

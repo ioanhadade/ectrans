@@ -33,6 +33,7 @@ module_load hpcx-openmpi/2.9.0
 module_load intel-mkl/19.0.5
 module_load fftw/3.3.10
 module_load cmake/3.25.2
+module_load ninja/1.10.0
 
 # Setting required for bit reproducibility with Intel MKL:
 export MKL_CBWR=AUTO,STRICT
@@ -42,4 +43,8 @@ export LD_RUN_PATH=$LD_LIBRARY_PATH
 
 # Restore tracing to stored setting
 { if [[ -n "$tracing_" ]]; then set -x; else set +x; fi } 2>/dev/null
+
+# Get path this env.sh file is located in:
+ARCH_DIR="$( cd "$( dirname "${BASH_SOURCE[0]:-${(%):-%x}}" )" && pwd )"
+export CMAKE_TOOLCHAIN_FILE=${ARCH_DIR}/toolchain.cmake
 
